@@ -20,6 +20,23 @@ local function hl(text, group)
   return (group and "%#" .. group .. "#" or "%*") .. text
 end
 
+function M.tab_bufname(bufnr)
+  local name = vim.fn.bufname(bufnr)
+
+  if name == "" then
+    name = "[No Name]"
+  end
+
+  if strwidth(name) > 14 then
+    local ext = vim.fn.fnamemodify(name, ":e")
+    local suffix = ext == "" and "" or "." .. ext
+
+    name = truncate(name, 14 - strwidth(suffix)) .. suffix
+  end
+
+  return name
+end
+
 function M.ui_diffstatus()
   local status = vim.b.gitsigns_status_dict or {}
   local text = ""
@@ -40,49 +57,57 @@ function M.ui_bufname()
   return hl(icon .. " ", icon_hl) .. hl("%f") .. hl("%h%w%m%r", "NonText")
 end
 
+local severity = vim.diagnostic.severity
+
+function M.ui_diagnostic()
+  local text = ""
+  local diagnostics = vim.diagnostic.count()
+
+  if diagnostics[severity.ERROR] then
+    text = text
+      .. hl(" ", "DiagnosticError")
+      .. hl(diagnostics[severity.ERROR])
+  end
+
+  if diagnostics[severity.WARN] then
+    text = text
+      .. hl(" ", "DiagnosticWarn")
+      .. hl(diagnostics[severity.WARN])
+  end
+
+  return text
+end
+
 function M.statusline()
   return " %{%v:lua.require'noa'.ui_bufname()%}"
+      .. " %{%v:lua.require'noa'.ui_diagnostic()%}"
       .. " %{%v:lua.require'noa'.ui_diffstatus()%}"
       .. "%="
       .. hl("%l,%c%V %P")
 end
 
 function M.tabline(bufnr)
-  if bufnr == nil then
-    local list, current = buflist()
-    local line = ""
+  local list, current = buflist()
+  local line = ""
 
-    local bufstart = 1
-    local bufend = #list
+  local bufstart = 1
+  local bufend = #list
 
-    if (bufend - bufstart + 1) * 24 > vim.o.columns then
+  if (bufend - bufstart + 1) * 24 > vim.o.columns then
 
-    end
-
-    for i = bufstart, bufend do
-      line = line .. hl(
-        " %{v:lua.require'noa'.tabline(" .. list[i] .. ")} ",
-        i == current and "TabLineSel")
-    end
-
-    return line .. hl("", "TabLineFill")
   end
 
-  local name = vim.fn.bufname(bufnr)
+  for i = bufstart, bufend do
+    local bufnr = list[i]
 
-  if name == "" then
-    name = "[No Name]"
+    line = line .. hl(
+      " %-14.14(%{v:lua.require'noa'.tab_bufname(" .. bufnr .. ")}%) "
+        .. (vim.fn.getbufvar(bufnr, "&modified") == 1 and "●" or "○")
+        .. " ",
+      i == current and "TabLineSel")
   end
 
-  if strwidth(name) > 14 then
-    local ext = vim.fn.fnamemodify(name, ":e")
-    local suffix = ext == "" and "" or "." .. ext
-
-    name = truncate(name, 14 - strwidth(suffix)) .. suffix
-  end
-
-  return (name .. string.rep(" ", 14 - #name))
-    .. " " .. (vim.fn.getbufvar(bufnr, "&modified") == 1 and "●" or "○")
+  return line .. hl("", "TabLineFill")
 end
 
 function M.winbar()
