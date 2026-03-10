@@ -21,11 +21,9 @@ local function hl(text, group)
 end
 
 function M.tab_bufname(bufnr)
-  local name = vim.fn.bufname(bufnr)
-
-  if name == "" then
-    name = "[No Name]"
-  end
+  local name = vim.api.nvim_buf_call(bufnr, function()
+    return vim.fn.pathshorten(vim.api.nvim_eval_statusline("%f", { }).str)
+  end)
 
   if strwidth(name) > 14 then
     local ext = vim.fn.fnamemodify(name, ":e")
